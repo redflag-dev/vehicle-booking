@@ -7,8 +7,16 @@ import { SERIES_COLORS, TEST_TYPE_MAP, parsePlateExpiry } from '../vehicles'
 function formatPlateInfo(plateInfo) {
   if (!plateInfo) return ''
   if (/^\d{4}-\d{2}-\d{2}$/.test(plateInfo)) {
-    const [, m, d] = plateInfo.split('-')
-    return `${+m}月${+d}日`
+    const [, y, m, d] = plateInfo.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    const expiry = new Date(+y, +m - 1, +d)
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    const diff = Math.ceil((expiry - now) / 86400000)
+    if (diff < 0) return `${+m}/${+d} 过期`
+    if (diff === 0) return `${+m}/${+d} 今天到期`
+    if (diff <= 7) return `${+m}/${+d} 剩${diff}天`
+    if (diff <= 30) return `${+m}/${+d} 剩${diff}天`
+    return `${+m}/${+d}`
   }
   // legacy: strip "临牌" prefix and "过期"/"到期" suffix, keep only the date part
   return plateInfo.replace(/^临牌/, '').replace(/[过到]期$/, '')
@@ -84,7 +92,7 @@ export default function BookingTable({ weekStart, bookings, vehicles, onCellClic
                 <div className="date-header">
                   <span className="date-weekday">{d.format('ddd')}</span>
                   <span className="date-day">{d.format('D')}</span>
-                  <span className="date-weekday">{d.format('M/D')}</span>
+                  <span className="date-month">{d.format('M/D')}</span>
                 </div>
               </th>
             )

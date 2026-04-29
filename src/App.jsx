@@ -80,7 +80,11 @@ export default function App() {
   function handleRealtimeEvent(payload) {
     const { eventType, new: row, old } = payload
     setBookings(prev => {
-      if (eventType === 'INSERT') return [...prev, row]
+      if (eventType === 'INSERT') {
+        // Deduplicate: skip if already present (added by handleSave)
+        if (prev.some(b => b.id === row.id)) return prev
+        return [...prev, row]
+      }
       if (eventType === 'UPDATE') return prev.map(b => b.id === row.id ? row : b)
       if (eventType === 'DELETE') return prev.filter(b => b.id !== old.id)
       return prev
@@ -125,7 +129,7 @@ export default function App() {
         } else {
           const { data, error } = await supabase.from('bookings').insert(formData).select().single()
           if (!error && data) {
-            setBookings(prev => [...prev, data])
+            setBookings(prev => prev.some(b => b.id === data.id) ? prev : [...prev, data])
           }
         }
       } else {
