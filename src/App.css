@@ -1,5 +1,10 @@
 *, *::before, *::after { box-sizing: border-box; }
 
+html, body, #root {
+  height: auto;
+  overflow: auto;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -12,8 +17,7 @@ body {
 .app-shell {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
 }
 
 .app-header {
@@ -74,29 +78,45 @@ body {
 .summary-bar {
   background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
   border-bottom: 1px solid #E2E8F0;
-  padding: 16px 20px;
+  padding: 6px 20px;
   flex-shrink: 0;
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+
+.summary-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.summary-vdivider {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 12px;
+  background: linear-gradient(180deg, transparent, #CBD5E1 20%, #CBD5E1 80%, transparent);
 }
 
 .summary-cards {
   display: flex;
-  gap: 12px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .summary-card {
   background: var(--card-bg);
   border: 1px solid color-mix(in srgb, var(--card-color) 20%, transparent);
-  border-radius: 8px;
-  padding: 10px 16px;
+  border-radius: 5px;
+  padding: 3px 8px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 2px;
-  min-width: 90px;
+  gap: 4px;
+  min-width: unset;
   box-shadow: 0 1px 2px rgba(0,0,0,0.04);
   transition: transform .15s, box-shadow .15s;
 }
@@ -107,7 +127,7 @@ body {
 }
 
 .summary-card-value {
-  font-size: 24px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--card-color);
   line-height: 1;
@@ -117,7 +137,6 @@ body {
   font-size: 11px;
   font-weight: 500;
   color: #64748B;
-  text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
@@ -129,7 +148,7 @@ body {
 .summary-series-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 
@@ -140,7 +159,7 @@ body {
   background: #fff;
   border: 1px solid #E2E8F0;
   border-radius: 6px;
-  padding: 5px 10px;
+  padding: 2px 8px;
   font-size: 12px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.03);
   transition: border-color .15s, box-shadow .15s;
@@ -188,7 +207,7 @@ body {
 .summary-testtype-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 
@@ -208,7 +227,7 @@ body {
   background: #fff;
   border: 1px solid #E2E8F0;
   border-radius: 6px;
-  padding: 4px 10px;
+  padding: 2px 8px;
   font-size: 12px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.03);
 }
@@ -247,11 +266,11 @@ body {
   border-radius: 4px;
 }
 
-/* ─── Test type summary ─────────────────────────────────────── */
+/* ─── Test type summary (dup) ────────────────────────────── */
 .summary-testtype-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 
@@ -271,7 +290,7 @@ body {
   background: #fff;
   border: 1px solid #E2E8F0;
   border-radius: 6px;
-  padding: 4px 10px;
+  padding: 2px 8px;
   font-size: 12px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.03);
 }
@@ -373,8 +392,7 @@ body {
 
 /* ─── Scrollable body ───────────────────────────────────────── */
 .table-scroll {
-  flex: 1;
-  overflow: auto;
+  overflow-x: auto;
   padding: 0;
 }
 

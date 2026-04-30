@@ -60,7 +60,7 @@ export default function SummaryBar({ vehicles, bookings }) {
 
   return (
     <div className="summary-bar">
-      <div className="summary-cards">
+      <div className="summary-section summary-cards">
         {stats.map(s => (
           <div key={s.label} className="summary-card" style={{ '--card-color': s.color, '--card-bg': s.bg }}>
             <span className="summary-card-value">{s.value}</span>
@@ -69,9 +69,9 @@ export default function SummaryBar({ vehicles, bookings }) {
         ))}
       </div>
 
-      <div className="summary-divider" />
+      <div className="summary-vdivider" />
 
-      <div className="summary-series-list">
+      <div className="summary-section summary-series-list">
         {seriesRows.map(({ series, total: st, booked: sb, color }) => (
           <div key={series} className="summary-series-chip">
             <span className="summary-series-dot" style={{ background: color }} />
@@ -88,26 +88,24 @@ export default function SummaryBar({ vehicles, bookings }) {
         <span className="summary-series-legend">总/已约/未约</span>
       </div>
 
-      {testTypeRows.length > 0 && (
-        <>
-          <div className="summary-divider" />
-          <div className="summary-testtype-list">
-            <span className="summary-testtype-title">今日白班</span>
-            {testTypeRows.map(({ type, total: cnt, sz, cc }) => (
-              <div key={type} className="summary-testtype-chip">
-                <span className="summary-testtype-name">{type}</span>
-                <span className="summary-testtype-count">{cnt}组</span>
-                {LOC_SPLIT_TYPES.has(type) && (cnt > 0) && (
-                  <span className="summary-testtype-loc">
-                    {sz > 0 && <span className="loc-sz-tag">深圳{sz}</span>}
-                    {cc > 0 && <span className="loc-cc-tag">长春{cc}</span>}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+      {testTypeRows.length > 0 && (<>
+        <div className="summary-vdivider" />
+        <div className="summary-section summary-testtype-list">
+          <span className="summary-testtype-title">今日白班</span>
+          {testTypeRows.map(({ type, total: cnt, sz, cc }) => (
+            <div key={type} className="summary-testtype-chip">
+              <span className="summary-testtype-name">{type}</span>
+              <span className="summary-testtype-count">{cnt}组</span>
+              {LOC_SPLIT_TYPES.has(type) && (cnt > 0) && (
+                <span className="summary-testtype-loc">
+                  {sz > 0 && <span className="loc-sz-tag">深圳{sz}</span>}
+                  {cc > 0 && <span className="loc-cc-tag">长春{cc}</span>}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </>)}
     </div>
   )
 }
