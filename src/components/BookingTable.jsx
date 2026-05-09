@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
-import { SERIES_COLORS, TEST_TYPE_MAP, parsePlateExpiry } from '../vehicles'
+import { SERIES_COLORS, parsePlateExpiry } from '../vehicles'
 
 function formatPlateInfo(plateInfo) {
   if (!plateInfo) return ''
@@ -12,7 +12,7 @@ function formatPlateInfo(plateInfo) {
     const now = new Date()
     now.setHours(0, 0, 0, 0)
     const diff = Math.ceil((expiry - now) / 86400000)
-    if (diff < 0) return `${+m}/${+d} 过期`
+    if (diff < 0) return `${+m}/${+d}`
     if (diff === 0) return `${+m}/${+d} 今天到期`
     if (diff <= 7) return `${+m}/${+d} 剩${diff}天`
     if (diff <= 30) return `${+m}/${+d} 剩${diff}天`
@@ -27,13 +27,32 @@ dayjs.extend(isSameOrAfter)
 
 const SERIES_ORDER = ['E202', 'E001', 'E009', 'E007', 'P301', 'P201', 'P567', 'E202-10']
 
+// 调休工作日（周末需上班，不标灰）
+const MAKEUP_WORKDAYS = new Set([
+  '2026-02-08', '2026-02-28',           // 春节调休
+  '2026-04-26', '2026-05-10',           // 劳动节调休
+])
+
+// 节假日中的工作日（平日被设为法定假日，需标灰）
+const HOLIDAY_WEEKDAYS = new Set([
+  '2026-02-16','2026-02-17','2026-02-18','2026-02-19','2026-02-20', // 春节
+  '2026-04-03',                                                       // 清明
+  '2026-05-01','2026-05-04','2026-05-05',                            // 劳动节
+])
+
+function isGrayDay(d) {
+  const s = d.format('YYYY-MM-DD')
+  const wknd = d.day() === 0 || d.day() === 6
+  return (wknd && !MAKEUP_WORKDAYS.has(s)) || HOLIDAY_WEEKDAYS.has(s)
+}
+
 function locClass(loc) {
   if (loc === '深圳') return 'loc-sz'
   if (loc === '长春') return 'loc-cc'
   return 'loc-tj'
 }
 
-export default function BookingTable({ weekStart, bookings, vehicles, onCellClick, onVehicleEdit }) {
+export default function BookingTable({ weekStart, bookings, vehicles, testTypes, onCellClick, onVehicleEdit }) {
   const days = useMemo(() => {
     return Array.from({ length: 14 }, (_, i) => dayjs(weekStart).add(i, 'day'))
   }, [weekStart])
@@ -63,6 +82,23 @@ export default function BookingTable({ weekStart, bookings, vehicles, onCellClic
     return m
   }, [bookings])
 
+  // conflict map: "date|location|test_type" -> count (daytime only)
+  const conflictMap = useMemo(() => {
+    const map = {}
+    days.forEach(d => {
+      const dateStr = d.format('YYYY-MM-DD')
+      vehicles.forEach(v => {
+        ;(byVehicle[v.id] || []).forEach(b => {
+          if (b.shift === '夜班') return
+          if (!d.isSameOrAfter(dayjs(b.start_date), 'day') || !d.isSameOrBefore(dayjs(b.end_date), 'day')) return
+          const key = `${dateStr}|${v.location}|${b.test_type}`
+          map[key] = (map[key] || 0) + 1
+        })
+      })
+    })
+    return map
+  }, [days, vehicles, byVehicle])
+
   function bookingsOnDay(vehicleId, day) {
     const list = byVehicle[vehicleId] || []
     return list.filter(b =>
@@ -82,12 +118,12 @@ export default function BookingTable({ weekStart, bookings, vehicles, onCellClic
           <th className="col-sticky col-usage" style={{ zIndex: 30 }}>用途 / 说明</th>
           <th className="col-sticky col-notes" style={{ zIndex: 30 }}>注意事项</th>
           {days.map(d => {
-            const isWknd = d.day() === 0 || d.day() === 6
+            const isGray = isGrayDay(d)
             const isToday = d.isSame(today, 'day')
             return (
               <th
                 key={d.format('YYYY-MM-DD')}
-                className={`col-date ${isWknd ? 'col-date-weekend' : ''} ${isToday ? 'col-date-today' : ''}`}
+                className={`col-date ${isGray ? 'col-date-weekend' : ''} ${isToday ? 'col-date-today' : ''}`}
               >
                 <div className="date-header">
                   <span className="date-weekday">{d.format('ddd')}</span>
@@ -158,29 +194,33 @@ export default function BookingTable({ weekStart, bookings, vehicles, onCellClic
                     </td>
                     {days.map(d => {
                       const key = d.format('YYYY-MM-DD')
-                      const isWknd = d.day() === 0 || d.day() === 6
+                      const isGray = isGrayDay(d)
                       const isToday = d.isSame(today, 'day')
                       const chips = bookingsOnDay(v.id, d)
                       return (
                         <td
                           key={key}
-                          className={`cell-day ${isWknd ? 'cell-day-weekend' : ''} ${isToday ? 'cell-day-today' : ''}`}
+                          className={`cell-day ${isGray ? 'cell-day-weekend' : ''} ${isToday ? 'cell-day-today' : ''}`}
                           onClick={() => onCellClick(v, d.toDate())}
                         >
                           <span className="cell-day-add-hint">+</span>
                           <div className="cell-day-content">
                             {[...chips].sort((a, b) => (a.shift === '夜班') - (b.shift === '夜班')).map(bk => {
-                              const tt = TEST_TYPE_MAP[bk.test_type] || TEST_TYPE_MAP['其他']
+                              const ttMap = Object.fromEntries(testTypes.map(t => [t.label, t]))
+                              const tt = ttMap[bk.test_type] || ttMap['其他'] || { bg: '#EFEBE9', color: '#5D4037' }
+                              const isConflict = bk.shift === '白班' &&
+                                (conflictMap[`${key}|${v.location}|${bk.test_type}`] || 0) >= 2
                               return (
                                 <div
                                   key={bk.id}
-                                  className="booking-chip"
+                                  className={`booking-chip${isConflict ? ' booking-chip-conflict' : ''}`}
                                   style={{ background: tt.bg, color: tt.color }}
                                   onClick={e => { e.stopPropagation(); onCellClick(v, d.toDate(), bk) }}
                                 >
                                   <span className={`chip-shift ${bk.shift === '夜班' ? 'chip-shift-night' : 'chip-shift-day'}`}>
                                     {bk.shift === '夜班' ? '夜' : '白'}
                                   </span>
+                                  {isConflict && <span className="chip-conflict-icon">⚠</span>}
                                   <span className="chip-label">{bk.test_type}</span>
                                 </div>
                               )
