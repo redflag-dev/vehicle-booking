@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { TEST_TYPES, TEST_TYPE_MAP } from '../vehicles'
 import dayjs from 'dayjs'
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
+dayjs.extend(isSameOrBefore)
+dayjs.extend(isSameOrAfter)
 
-export default function BookingModal({ vehicle, date, initialBooking, bookings, onClose, onSave, onDelete }) {
+export default function BookingModal({ vehicle, date, initialBooking, bookings, testTypes, onClose, onSave, onDelete }) {
   const dayBookings = bookings.filter(b =>
     b.vehicle_id === vehicle.id &&
     dayjs(b.start_date).isSameOrBefore(date, 'day') &&
@@ -18,7 +21,7 @@ export default function BookingModal({ vehicle, date, initialBooking, bookings, 
   const [submitAttempted, setSubmitAttempted] = useState(false)
 
   const emptyForm = {
-    test_type:  TEST_TYPES[0].label,
+    test_type:  testTypes[0].label,
     shift:      '白班',
     tester:     '',
     start_date: dayjs(date).format('YYYY-MM-DD'),
@@ -112,7 +115,8 @@ export default function BookingModal({ vehicle, date, initialBooking, bookings, 
             </div>
             <div className="existing-bookings">
               {dayBookings.map(bk => {
-                const tt = TEST_TYPE_MAP[bk.test_type] || TEST_TYPE_MAP['其他']
+                const ttMap = Object.fromEntries(testTypes.map(t => [t.label, t]))
+                const tt = ttMap[bk.test_type] || ttMap['其他'] || { color: '#5D4037' }
                 return (
                   <div key={bk.id} className="existing-booking-item">
                     <div className="ebi-color" style={{ background: tt.color }} />
@@ -152,7 +156,7 @@ export default function BookingModal({ vehicle, date, initialBooking, bookings, 
             <div className="form-row">
               <label>测试类型</label>
               <select value={form.test_type} onChange={e => setForm(f => ({ ...f, test_type: e.target.value }))}>
-                {TEST_TYPES.map(t => (
+                {testTypes.map(t => (
                   <option key={t.label} value={t.label}>{t.label}</option>
                 ))}
               </select>
