@@ -15,6 +15,7 @@ export default function BookingModal({ vehicle, date, initialBooking, bookings, 
   // If a chip was clicked, start directly in edit mode for that booking
   const [mode, setMode] = useState(() => {
     if (initialBooking) return 'edit'
+    console.log('dayBookings:', dayBookings, 'length:', dayBookings.length)
     return dayBookings.length === 0 ? 'new' : 'list'
   })
   const [editing, setEditing] = useState(initialBooking || null)
