@@ -21,7 +21,7 @@ export default function BookingModal({ vehicle, date, initialBooking, bookings, 
   const [submitAttempted, setSubmitAttempted] = useState(false)
 
   const emptyForm = {
-    test_type:  testTypes[0].label,
+    test_type:  testTypes?.[0]?.label || '其他',
     shift:      '白班',
     tester:     '',
     start_date: dayjs(date).format('YYYY-MM-DD'),
@@ -115,7 +115,7 @@ export default function BookingModal({ vehicle, date, initialBooking, bookings, 
             </div>
             <div className="existing-bookings">
               {dayBookings.map(bk => {
-                const ttMap = Object.fromEntries(testTypes.map(t => [t.label, t]))
+                const ttMap = Object.fromEntries((testTypes || []).map(t => [t.label, t]))
                 const tt = ttMap[bk.test_type] || ttMap['其他'] || { color: '#5D4037' }
                 return (
                   <div key={bk.id} className="existing-booking-item">
@@ -156,7 +156,7 @@ export default function BookingModal({ vehicle, date, initialBooking, bookings, 
             <div className="form-row">
               <label>测试类型</label>
               <select value={form.test_type} onChange={e => setForm(f => ({ ...f, test_type: e.target.value }))}>
-                {testTypes.map(t => (
+                {(testTypes || []).map(t => (
                   <option key={t.label} value={t.label}>{t.label}</option>
                 ))}
               </select>
