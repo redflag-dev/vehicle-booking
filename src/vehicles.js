@@ -9,7 +9,7 @@ export const SERIES_COLORS = {
   'E202-10': '#37474F',
 }
 
-export const TEST_TYPES = [
+export const DEFAULT_TEST_TYPES = [
   { label: 'GE/CT',  color: '#7B1FA2', bg: '#F3E5F5' },
   { label: 'AS',     color: '#1565C0', bg: '#E3F2FD' },
   { label: 'FL',     color: '#2E7D32', bg: '#E8F5E9' },
@@ -22,6 +22,21 @@ export const TEST_TYPES = [
   { label: '其他',   color: '#5D4037', bg: '#EFEBE9' },
 ]
 
+const LS_TEST_TYPES_KEY = 'vb_test_types_v1'
+
+export function loadTestTypes() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(LS_TEST_TYPES_KEY))
+    if (Array.isArray(stored) && stored.length > 0) return stored
+  } catch {}
+  return DEFAULT_TEST_TYPES
+}
+
+export function saveTestTypes(list) {
+  localStorage.setItem(LS_TEST_TYPES_KEY, JSON.stringify(list))
+}
+
+export const TEST_TYPES = loadTestTypes()
 export const TEST_TYPE_MAP = Object.fromEntries(TEST_TYPES.map(t => [t.label, t]))
 
 export function getSeries(id) {

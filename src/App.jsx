@@ -6,8 +6,9 @@ import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
 import BookingTable from './components/BookingTable'
 import BookingModal from './components/BookingModal'
 import VehicleModal from './components/VehicleModal'
+import TestTypeModal from './components/TestTypeModal'
 import SummaryBar from './components/SummaryBar'
-import { VEHICLES, getSeries } from './vehicles'
+import { VEHICLES, getSeries, loadTestTypes } from './vehicles'
 import { supabase, isConfigured } from './supabase'
 
 dayjs.extend(weekOfYear)
@@ -52,6 +53,8 @@ export default function App() {
   const [vehicles, setVehicles] = useState(loadLocalVehicles)
   const [modal, setModal] = useState(null)
   const [vehicleModal, setVehicleModal] = useState(null)
+  const [testTypeModal, setTestTypeModal] = useState(false)
+  const [testTypes, setTestTypes] = useState(loadTestTypes)
   const [saving, setSaving] = useState(false)
   const channelRef = useRef(null)
 
@@ -233,6 +236,7 @@ export default function App() {
           <span className="week-label">{weekLabel}</span>
           <button className="btn btn-ghost btn-icon" onClick={() => shiftWeek(1)}>›</button>
         </div>
+        <button className="btn btn-ghost" onClick={() => setTestTypeModal(true)}>测试类型</button>
         <button className="btn btn-primary" onClick={() => setVehicleModal({ id: '', location: '深圳', usage: '', notes: '', plateInfo: '', app: '' })}>+ 新增车辆</button>
         <button className="btn btn-ghost" onClick={goToday}>今天</button>
         <button className="btn btn-ghost" onClick={() => shiftWeek(-2)}>前两周</button>
@@ -244,10 +248,19 @@ export default function App() {
           weekStart={weekStart}
           bookings={bookings}
           vehicles={vehicles}
+          testTypes={testTypes}
           onCellClick={openModal}
           onVehicleEdit={v => setVehicleModal(v)}
         />
       </div>
+
+      {testTypeModal && (
+        <TestTypeModal
+          testTypes={testTypes}
+          onClose={() => setTestTypeModal(false)}
+          onSave={list => { setTestTypes(list); setTestTypeModal(false) }}
+        />
+      )}
 
       {vehicleModal && (
         <VehicleModal
@@ -264,6 +277,7 @@ export default function App() {
           date={modal.date}
           initialBooking={modal.booking}
           bookings={bookings}
+          testTypes={testTypes}
           onClose={closeModal}
           onSave={handleSave}
           onDelete={handleDelete}

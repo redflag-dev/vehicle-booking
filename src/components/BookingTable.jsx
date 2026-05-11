@@ -203,7 +203,10 @@ export default function BookingTable({ weekStart, bookings, vehicles, testTypes,
                           className={`cell-day ${isGray ? 'cell-day-weekend' : ''} ${isToday ? 'cell-day-today' : ''}`}
                           onClick={() => onCellClick(v, d.toDate())}
                         >
-                          <span className="cell-day-add-hint">+</span>
+                          <span
+                            className="cell-day-add-hint"
+                            onClick={e => { e.stopPropagation(); onCellClick(v, d.toDate()) }}
+                          >+</span>
                           <div className="cell-day-content">
                             {[...chips].sort((a, b) => (a.shift === '夜班') - (b.shift === '夜班')).map(bk => {
                               const ttMap = Object.fromEntries((testTypes || []).map(t => [t.label, t]))
@@ -215,7 +218,7 @@ export default function BookingTable({ weekStart, bookings, vehicles, testTypes,
                                   key={bk.id}
                                   className={`booking-chip${isConflict ? ' booking-chip-conflict' : ''}`}
                                   style={{ background: tt.bg, color: tt.color }}
-                                  onClick={e => { e.stopPropagation(); onCellClick(v, d.toDate(), bk) }}
+                                  onClick={e => { e.stopPropagation(); onCellClick(v, d.toDate()) }}
                                 >
                                   <span className={`chip-shift ${bk.shift === '夜班' ? 'chip-shift-night' : 'chip-shift-day'}`}>
                                     {bk.shift === '夜班' ? '夜' : '白'}

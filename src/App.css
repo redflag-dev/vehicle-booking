@@ -1,8 +1,8 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body, #root {
-  height: auto;
-  overflow: auto;
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -17,7 +17,7 @@ body {
 .app-shell {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100%;
 }
 
 .app-header {
@@ -379,7 +379,6 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
 }
 
 .week-label {
@@ -392,8 +391,10 @@ body {
 
 /* ─── Scrollable body ───────────────────────────────────────── */
 .table-scroll {
-  overflow-x: auto;
+  overflow: auto;
   padding: 0;
+  flex: 1;
+  min-height: 0;
 }
 
 /* ─── Main table ────────────────────────────────────────────── */
@@ -626,6 +627,7 @@ thead .col-sticky { z-index: 30; }
   align-items: center;
   justify-content: center;
   opacity: 0;
+  z-index: 10;
   transition: all .2s ease;
   pointer-events: none;
   line-height: 1;
@@ -657,7 +659,18 @@ thead .col-sticky { z-index: 30; }
   transition: filter .12s;
 }
 
-.booking-chip:hover { filter: brightness(.9); }
+.booking-chip-conflict {
+  background: #DC2626 !important;
+  color: #fff !important;
+  outline: none;
+}
+
+.chip-conflict-icon {
+  font-size: 9px;
+  flex-shrink: 0;
+}
+
+
 
 .chip-shift {
   font-size: 9px;
@@ -670,6 +683,8 @@ thead .col-sticky { z-index: 30; }
 
 .chip-shift-day   { background: rgba(255,255,255,.55); }
 .chip-shift-night { background: rgba(0,0,0,.15); }
+
+.booking-chip-conflict .chip-shift { background: #FF1A1A; }
 
 .chip-label {
   overflow: hidden;
