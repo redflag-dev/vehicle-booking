@@ -58,6 +58,17 @@ export default function App() {
   const [saving, setSaving] = useState(false)
   const channelRef = useRef(null)
 
+  const [selection, setSelection] = useState({ isSelecting: false, startCell: null, endCell: null, selectedCells: [] })
+  const [clipboard, setClipboard] = useState({ mode: null, cells: [] })
+  const vehiclesRef = useRef(vehicles)
+  const bookingsRef = useRef(bookings)
+  const selectionRef = useRef(selection)
+  const clipboardRef = useRef(clipboard)
+  useEffect(() => { vehiclesRef.current = vehicles }, [vehicles])
+  useEffect(() => { bookingsRef.current = bookings }, [bookings])
+  useEffect(() => { selectionRef.current = selection }, [selection])
+  useEffect(() => { clipboardRef.current = clipboard }, [clipboard])
+
   // ── load ────────────────────────────────────────────────────
   useEffect(() => {
     if (isConfigured) {
@@ -176,6 +187,225 @@ export default function App() {
     }
   }
 
+  // ── selection helpers ────────────────────────────────────────
+  function computeSelectedCells(startCell, endCell, allVehicles, allDays) {
+    if (!startCell || !endCell) return []
+    const vIds = allVehicles.map(v => v.id)
+    const si = vIds.indexOf(startCell.vehicleId)
+    const ei = vIds.indexOf(endCell.vehicleId)
+    const minV = Math.min(si, ei)
+    const maxV = Math.max(si, ei)
+    const startDate = dayjs(startCell.date)
+    const endDate = dayjs(endCell.date)
+    const minDate = startDate.isBefore(endDate) ? startDate : endDate
+    const maxDate = startDate.isBefore(endDate) ? endDate : startDate
+    const cells = []
+    for (let vi = minV; vi <= maxV; vi++) {
+      let d = minDate
+      while (d.isSameOrBefore(maxDate, 'day')) {
+        cells.push({ vehicleId: vIds[vi], date: d.toDate() })
+        d = d.add(1, 'day')
+      }
+    }
+    return cells
+  }
+
+  function handleSelectionStart(vehicleId, date) {
+    if (modal) return
+    setSelection({ isSelecting: true, startCell: { vehicleId, date }, endCell: { vehicleId, date }, selectedCells: [{ vehicleId, date }] })
+  }
+
+  function handleSelectionExtend(vehicleId, date, allVehicles) {
+    setSelection(prev => {
+      if (!prev.isSelecting) return prev
+      const cells = computeSelectedCells(prev.startCell, { vehicleId, date }, allVehicles, [])
+      return { ...prev, endCell: { vehicleId, date }, selectedCells: cells }
+    })
+  }
+
+  function handleSelectionEnd() {
+    setSelection(prev => ({ ...prev, isSelecting: false }))
+  }
+
+  function clearSelection() {
+    setSelection({ isSelecting: false, startCell: null, endCell: null, selectedCells: [] })
+  }
+
+  function handleCopy() {
+    const sel = selectionRef.current
+    if (!sel.selectedCells.length) return
+    const bks = bookingsRef.current
+    const cells = sel.selectedCells.map(cell => {
+      const cellBookings = bks.filter(b =>
+        b.vehicle_id === cell.vehicleId &&
+        dayjs(b.start_date).isSameOrBefore(dayjs(cell.date), 'day') &&
+        dayjs(b.end_date).isSameOrAfter(dayjs(cell.date), 'day')
+      )
+      return { ...cell, bookings: cellBookings }
+    })
+    setClipboard({ mode: 'copy', cells })
+  }
+
+  async function handleCut() {
+    const sel = selectionRef.current
+    if (!sel.selectedCells.length) return
+    const bks = bookingsRef.current
+    const cells = sel.selectedCells.map(cell => {
+      const cellBookings = bks.filter(b =>
+        b.vehicle_id === cell.vehicleId &&
+        dayjs(b.start_date).isSameOrBefore(dayjs(cell.date), 'day') &&
+        dayjs(b.end_date).isSameOrAfter(dayjs(cell.date), 'day')
+      )
+      return { ...cell, bookings: cellBookings }
+    })
+    setClipboard({ mode: 'cut', cells })
+    // 立即删除原预约
+    const ids = new Set(cells.flatMap(c => c.bookings.map(b => b.id)))
+    for (const id of ids) await handleDeleteSilent(id)
+  }
+
+  async function handlePaste() {
+    const cb = clipboardRef.current
+    const sel = selectionRef.current
+    if (!cb.cells.length || !sel.selectedCells.length) return
+    const vhs = vehiclesRef.current
+    const bks = bookingsRef.current
+    const targetStart = sel.selectedCells[0]
+    const sourceStart = cb.cells[0]
+    const vIds = vhs.map(v => v.id)
+    const srcVIdx = vIds.indexOf(sourceStart.vehicleId)
+    const tgtVIdx = vIds.indexOf(targetStart.vehicleId)
+    const vOffset = tgtVIdx - srcVIdx
+    const dateOffset = dayjs(targetStart.date).diff(dayjs(sourceStart.date), 'day')
+
+    // 先删除目标区域的现有预约
+    const toDeleteIds = new Set()
+    cb.cells.forEach(cell => {
+      const tgtVId = vIds[vIds.indexOf(cell.vehicleId) + vOffset]
+      if (!tgtVId) return
+      const tgtDate = dayjs(cell.date).add(dateOffset, 'day')
+      bks.forEach(b => {
+        if (b.vehicle_id === tgtVId &&
+            dayjs(b.start_date).isSameOrBefore(tgtDate, 'day') &&
+            dayjs(b.end_date).isSameOrAfter(tgtDate, 'day')) {
+          toDeleteIds.add(b.id)
+        }
+      })
+    })
+    for (const id of toDeleteIds) await handleDeleteSilent(id)
+
+    // 创建新预约（去重：同一个 booking 可能跨多个单元格，只创建一次）
+    const seen = new Set()
+    for (const cell of cb.cells) {
+      const tgtVId = vIds[vIds.indexOf(cell.vehicleId) + vOffset]
+      if (!tgtVId) continue
+      for (const booking of cell.bookings) {
+        if (seen.has(booking.id)) continue
+        seen.add(booking.id)
+        const { id: _id, ...fields } = booking
+        await handleSaveSilent({
+          ...fields,
+          vehicle_id: tgtVId,
+          start_date: dayjs(booking.start_date).add(dateOffset, 'day').format('YYYY-MM-DD'),
+          end_date: dayjs(booking.end_date).add(dateOffset, 'day').format('YYYY-MM-DD'),
+        })
+      }
+    }
+    clearSelection()
+  }
+
+  // 不关闭 modal 的静默版本
+  async function handleDeleteSilent(id) {
+    if (isConfigured) {
+      await supabase.from('bookings').delete().eq('id', id)
+      setBookings(prev => prev.filter(b => b.id !== id))
+    } else {
+      setBookings(prev => {
+        const next = prev.filter(b => b.id !== id)
+        saveLocal(next)
+        return next
+      })
+    }
+  }
+
+  async function handleSaveSilent(formData) {
+    if (isConfigured) {
+      const { data, error } = await supabase.from('bookings').insert(formData).select().single()
+      if (!error && data) setBookings(prev => prev.some(b => b.id === data.id) ? prev : [...prev, data])
+    } else {
+      const newBooking = { ...formData, id: nextId() }
+      setBookings(prev => {
+        const next = [...prev, newBooking]
+        saveLocal(next)
+        return next
+      })
+    }
+  }
+
+  // 键盘快捷键
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey && e.key === 'c') {
+        const sel = selectionRef.current
+        if (sel.selectedCells.length > 0) {
+          e.preventDefault()
+          const bks = bookingsRef.current
+          const cells = sel.selectedCells.map(cell => {
+            const cellBookings = bks.filter(b =>
+              b.vehicle_id === cell.vehicleId &&
+              dayjs(b.start_date).isSameOrBefore(dayjs(cell.date), 'day') &&
+              dayjs(b.end_date).isSameOrAfter(dayjs(cell.date), 'day')
+            )
+            return { ...cell, bookings: cellBookings }
+          })
+          setClipboard({ mode: 'copy', cells })
+        }
+      } else if (e.ctrlKey && e.key === 'x') {
+        const sel = selectionRef.current
+        if (sel.selectedCells.length > 0) {
+          e.preventDefault()
+          const bks = bookingsRef.current
+          const cells = sel.selectedCells.map(cell => {
+            const cellBookings = bks.filter(b =>
+              b.vehicle_id === cell.vehicleId &&
+              dayjs(b.start_date).isSameOrBefore(dayjs(cell.date), 'day') &&
+              dayjs(b.end_date).isSameOrAfter(dayjs(cell.date), 'day')
+            )
+            return { ...cell, bookings: cellBookings }
+          })
+          setClipboard({ mode: 'cut', cells })
+          const ids = new Set(cells.flatMap(c => c.bookings.map(b => b.id)))
+          ids.forEach(id => handleDeleteSilent(id))
+        }
+      } else if (e.ctrlKey && e.key === 'v') {
+        if (clipboardRef.current.cells.length > 0) { e.preventDefault(); handlePaste() }
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        const sel = selectionRef.current
+        if (sel.selectedCells.length > 0) {
+          e.preventDefault()
+          const bks = bookingsRef.current
+          const ids = new Set()
+          sel.selectedCells.forEach(cell => {
+            bks.forEach(b => {
+              if (b.vehicle_id === cell.vehicleId &&
+                  dayjs(b.start_date).isSameOrBefore(dayjs(cell.date), 'day') &&
+                  dayjs(b.end_date).isSameOrAfter(dayjs(cell.date), 'day')) {
+                ids.add(b.id)
+              }
+            })
+          })
+          ids.forEach(id => handleDeleteSilent(id))
+          clearSelection()
+        }
+      } else if (e.key === 'Escape') {
+        clearSelection()
+        setClipboard({ mode: null, cells: [] })
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   function handleVehicleDelete(vehicleId) {
     setVehicles(prev => {
       const next = prev.filter(v => v.id !== vehicleId)
@@ -251,6 +481,11 @@ export default function App() {
           testTypes={testTypes}
           onCellClick={openModal}
           onVehicleEdit={v => setVehicleModal(v)}
+          selection={selection}
+          clipboard={clipboard}
+          onSelectionStart={handleSelectionStart}
+          onSelectionExtend={handleSelectionExtend}
+          onSelectionEnd={handleSelectionEnd}
         />
       </div>
 

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useEffect } from 'react'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
@@ -52,8 +52,14 @@ function locClass(loc) {
   return 'loc-tj'
 }
 
-export default function BookingTable({ weekStart, bookings, vehicles, testTypes, onCellClick, onVehicleEdit }) {
+export default function BookingTable({ weekStart, bookings, vehicles, testTypes, onCellClick, onVehicleEdit, selection, clipboard, onSelectionStart, onSelectionExtend, onSelectionEnd }) {
   const [hoverTimer, setHoverTimer] = React.useState(null)
+
+  useEffect(() => {
+    const handleMouseUp = () => { if (selection?.isSelecting) onSelectionEnd() }
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => document.removeEventListener('mouseup', handleMouseUp)
+  }, [selection?.isSelecting])
 
   const days = useMemo(() => {
     return Array.from({ length: 14 }, (_, i) => dayjs(weekStart).add(i, 'day'))
@@ -110,7 +116,7 @@ export default function BookingTable({ weekStart, bookings, vehicles, testTypes,
   }
 
   return (
-    <table className="booking-table">
+    <table className={`booking-table${selection?.isSelecting ? ' selecting' : ''}`}>
       <thead>
         <tr>
           <th className="col-sticky col-idx" style={{ zIndex: 30 }}>#</th>
@@ -201,7 +207,24 @@ export default function BookingTable({ weekStart, bookings, vehicles, testTypes,
                       const chips = bookingsOnDay(v.id, d)
                       const hasBookings = chips.length > 0
 
+                      const isSelected = selection?.selectedCells?.some(
+                        c => c.vehicleId === v.id && dayjs(c.date).isSame(d, 'day')
+                      )
+                      const isCut = clipboard?.mode === 'cut' && clipboard?.cells?.some(
+                        c => c.vehicleId === v.id && dayjs(c.date).isSame(d, 'day')
+                      )
+
+                      const handleMouseDown = (e) => {
+                        if (e.button !== 0) return
+                        e.preventDefault()
+                        onSelectionStart?.(v.id, d.toDate())
+                      }
+
                       const handleMouseEnter = () => {
+                        if (selection?.isSelecting) {
+                          onSelectionExtend?.(v.id, d.toDate(), vehicles)
+                          return
+                        }
                         if (hasBookings) {
                           const timer = setTimeout(() => {
                             onCellClick(v, d.toDate())
@@ -217,11 +240,17 @@ export default function BookingTable({ weekStart, bookings, vehicles, testTypes,
                         }
                       }
 
+                      const handleClick = (e) => {
+                        if (selection?.selectedCells?.length > 1) return
+                        onCellClick(v, d.toDate())
+                      }
+
                       return (
                         <td
                           key={key}
-                          className={`cell-day ${isGray ? 'cell-day-weekend' : ''} ${isToday ? 'cell-day-today' : ''}`}
-                          onClick={() => onCellClick(v, d.toDate())}
+                          className={`cell-day${isGray ? ' cell-day-weekend' : ''}${isToday ? ' cell-day-today' : ''}${isSelected ? ' cell-selected' : ''}${isCut ? ' cell-cut' : ''}`}
+                          onClick={handleClick}
+                          onMouseDown={handleMouseDown}
                           onMouseEnter={handleMouseEnter}
                           onMouseLeave={handleMouseLeave}
                         >
