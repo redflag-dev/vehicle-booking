@@ -53,6 +53,8 @@ function locClass(loc) {
 }
 
 export default function BookingTable({ weekStart, bookings, vehicles, testTypes, onCellClick, onVehicleEdit }) {
+  const [hoverTimer, setHoverTimer] = React.useState(null)
+
   const days = useMemo(() => {
     return Array.from({ length: 14 }, (_, i) => dayjs(weekStart).add(i, 'day'))
   }, [weekStart])
@@ -197,11 +199,31 @@ export default function BookingTable({ weekStart, bookings, vehicles, testTypes,
                       const isGray = isGrayDay(d)
                       const isToday = d.isSame(today, 'day')
                       const chips = bookingsOnDay(v.id, d)
+                      const hasBookings = chips.length > 0
+
+                      const handleMouseEnter = () => {
+                        if (hasBookings) {
+                          const timer = setTimeout(() => {
+                            onCellClick(v, d.toDate())
+                          }, 1000)
+                          setHoverTimer(timer)
+                        }
+                      }
+
+                      const handleMouseLeave = () => {
+                        if (hoverTimer) {
+                          clearTimeout(hoverTimer)
+                          setHoverTimer(null)
+                        }
+                      }
+
                       return (
                         <td
                           key={key}
                           className={`cell-day ${isGray ? 'cell-day-weekend' : ''} ${isToday ? 'cell-day-today' : ''}`}
                           onClick={() => onCellClick(v, d.toDate())}
+                          onMouseEnter={handleMouseEnter}
+                          onMouseLeave={handleMouseLeave}
                         >
                           <span
                             className="cell-day-add-hint"
