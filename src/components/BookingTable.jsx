@@ -206,7 +206,7 @@ export default function BookingTable({ weekStart, bookings, vehicles, testTypes,
                           <span className="cell-day-add-hint">+</span>
                           <div className="cell-day-content">
                             {[...chips].sort((a, b) => (a.shift === '夜班') - (b.shift === '夜班')).map(bk => {
-                              const ttMap = Object.fromEntries(testTypes.map(t => [t.label, t]))
+                              const ttMap = Object.fromEntries((testTypes || []).map(t => [t.label, t]))
                               const tt = ttMap[bk.test_type] || ttMap['其他'] || { bg: '#EFEBE9', color: '#5D4037' }
                               const isConflict = bk.shift === '白班' &&
                                 (conflictMap[`${key}|${v.location}|${bk.test_type}`] || 0) >= 2
